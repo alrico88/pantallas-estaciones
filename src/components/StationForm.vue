@@ -62,6 +62,19 @@
       </div>
     </div>
 
+    <div
+      v-if="formData.interfaz === 'alphabetical'"
+      :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
+    >
+      <label class="block text-sm font-medium text-slate-300 mb-3">Empezar en estación</label>
+      <MultiStationFinder
+        :model-value="formData.alphabeticalStartStation ? [formData.alphabeticalStartStation] : []"
+        :max-selections="1"
+        full-width
+        @update:model-value="(value) => emitFormChange({ alphabeticalStartStation: value[0] || '' })"
+      />
+    </div>
+
     <!-- Traffic, Language in one line -->
     <div
       v-if="formData.interfaz !== 'clock' && formData.interfaz !== 'number'"
@@ -472,23 +485,6 @@
       class="space-y-5"
       :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
     >
-      <div>
-        <label for="alphabeticalStationNames" class="block text-sm font-medium text-slate-300 mb-2"
-          >Nombres alternativos</label
-        >
-        <input
-          id="alphabeticalStationNames"
-          :value="formData.alphabeticalStationNames"
-          @input="(e) => emitFormChange({ alphabeticalStationNames: e.target.value })"
-          type="text"
-          placeholder="31412:A Coruña Centro,60000:Atocha"
-          class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-dark-green focus:border-dark-green text-white placeholder-slate-400"
-        />
-        <p class="text-xs text-slate-400 mt-1">
-          Código:nombre. Solo se ve si la estación aparece en el panel; el nuevo nombre puede
-          cambiar su posición alfabética.
-        </p>
-      </div>
       <div class="flex flex-wrap gap-3">
         <div v-for="option in AlphabeticalVisualizationOptions" :key="option.key" class="relative">
           <input
@@ -516,6 +512,23 @@
             {{ option.label }}
           </label>
         </div>
+      </div>
+      <div>
+        <label for="alphabeticalStationNames" class="block text-sm font-medium text-slate-300 mb-2"
+          >Nombres alternativos</label
+        >
+        <input
+          id="alphabeticalStationNames"
+          :value="formData.alphabeticalStationNames"
+          @input="(e) => emitFormChange({ alphabeticalStationNames: e.target.value })"
+          type="text"
+          placeholder="31412:A Coruña Centro,60000:Atocha"
+          class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-dark-green focus:border-dark-green text-white placeholder-slate-400"
+        />
+        <p class="text-xs text-slate-400 mt-1">
+          Código:nombre. Solo se ve si la estación aparece en el panel; el nuevo nombre puede
+          cambiar su posición alfabética.
+        </p>
       </div>
     </div>
 

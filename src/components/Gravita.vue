@@ -20,6 +20,9 @@ const props = defineProps([
   'alphabeticalStations',
   'alphabeticalStationNames',
   'alphabeticalNetwork',
+  'alphabeticalStartStation',
+  'alphabeticalPage',
+  'alphabeticalPageRows',
   'showAlerts',
   'platformFilter',
   'platformLocation',
@@ -51,11 +54,12 @@ const props = defineProps([
   'simulateAccessOpeningMargin',
 ])
 
-const emit = defineEmits(['data', 'status'])
+const emit = defineEmits(['data', 'status', 'rows'])
 
 const status = ref('connecting')
 const lastMessageRaw = ref(null)
 const iframeKey = ref(0)
+const calculatedRows = ref(1)
 let connection = null
 // Platforms known from the last SignalR message. Updated in sendBoardData.
 // Plain (non-reactive) so it doesn't trigger iframeSrc recomputes on every message.
@@ -64,6 +68,8 @@ let lastReceivedAt = 0
 let healthCheckTimer = null
 let isReconnecting = false
 let isChangingStation = false
+let rowsReadTimer = null
+let boardResizeObserver = null
 
 const board = ref(null)
 
@@ -88,13 +94,28 @@ const iframeSrc = computed(() => {
     'simulatePlatformRouting',
     'simulateAccessOpeningMargin',
   ]
+  const internalProps = ['alphabeticalStartStation', 'alphabeticalPage', 'alphabeticalPageRows']
   Object.keys(props).forEach((key) => {
-    if (key !== 'stationCode' && props[key] !== undefined && !simulationOnlyProps.includes(key)) {
+    if (
+      key !== 'stationCode' &&
+      props[key] !== undefined &&
+      !simulationOnlyProps.includes(key) &&
+      !internalProps.includes(key)
+    ) {
       // Convert camelCase to kebab-case for URL params
       const paramKey = key.replace(/([A-Z])/g, '-$1').toLowerCase()
       paramsObj[paramKey] = props[key]
     }
   })
+
+  if (props.interfaz === 'adif-infotren-vista-alphabetical') {
+    const page = Math.max(1, Number.parseInt(String(props.alphabeticalPage), 10) || 1)
+    const rows = Math.max(
+      1,
+      Number.parseInt(String(props.alphabeticalPageRows), 10) || calculatedRows.value,
+    )
+    paramsObj['start-station'] = resolveAlphabeticalStartPosition() + (page - 1) * rows
+  }
 
   // ====================================================================
   // SIMULATION: platform-routing + pin position/style
@@ -121,6 +142,63 @@ const iframeSrc = computed(() => {
     : ''
 })
 
+function normalizeStationCode(code) {
+  return String(code || '').trim().replace(/^0+(?=\d)/, '')
+}
+
+function resolveAlphabeticalStartPosition() {
+  const wantedCode = normalizeStationCode(props.alphabeticalStartStation)
+  if (!wantedCode || !lastMessageRaw.value) return 1
+
+  try {
+    const data = JSON.parse(lastMessageRaw.value)
+    const stations = data?.stations || {}
+    const traffic = String(props.traffic || '').split(',').filter(Boolean)
+    const companies = String(props.companyFilter || '').split(',').filter(Boolean)
+    const products = String(props.productFilter || '').split(',').filter(Boolean)
+    const platforms = String(props.platformFilter || '').split(',').filter(Boolean)
+    const stops = String(props.stopFilter || '').split(',').map(normalizeStationCode).filter(Boolean)
+    const categories = String(props.customFilter || '').split(',').filter(Boolean)
+    const configured = String(props.alphabeticalStations || '').split(',').map(normalizeStationCode).filter(Boolean)
+    const active = new Set()
+
+    for (const train of data?.trains || []) {
+      if (train.status === 'cancelled') continue
+      if (!['intermediate', 'origin', 'boarding_only'].includes(train.class_stop)) continue
+      if (traffic.length && !traffic.includes(train.traffic_type)) continue
+      if (companies.length && !companies.includes(train.company)) continue
+      if (products.length && !(train.commercial_id || []).some((id) => products.includes(id.product))) continue
+      if (categories.length && !(train.custom_categories || []).some((category) => categories.includes(category))) continue
+      const journey = train.journey_stops_destination || []
+      if (stops.length && !journey.some((stop) => stops.includes(normalizeStationCode(stop.code)))) continue
+      if (platforms.length && ![train.platform, train.platform_preview].some((p) => platforms.includes(String(p || '')))) continue
+      for (const stop of journey) {
+        const code = normalizeStationCode(stop.code)
+        if (code) active.add(code)
+      }
+    }
+
+    const names = new Map()
+    String(props.alphabeticalStationNames || '').split(',').forEach((entry) => {
+      const separator = entry.indexOf(':')
+      if (separator > 0) names.set(normalizeStationCode(entry.slice(0, separator)), entry.slice(separator + 1))
+    })
+    const stationNames = new Map(
+      Object.entries(stations).map(([code, station]) => [
+        normalizeStationCode(code),
+        names.get(normalizeStationCode(code)) || station?.name?.[0] || code,
+      ]),
+    )
+    const candidates = (configured.length ? configured.filter((code) => active.has(code)) : [...active])
+      .filter((code, index, values) => values.indexOf(code) === index && stationNames.has(code))
+      .sort((a, b) => stationNames.get(a).localeCompare(stationNames.get(b), 'es', { ignorePunctuation: true }))
+    const position = candidates.indexOf(wantedCode)
+    return position >= 0 ? position + 1 : 1
+  } catch {
+    return 1
+  }
+}
+
 function handleBoardLoad() {
   if (lastMessageRaw.value) {
     setTimeout(() => {
@@ -129,11 +207,45 @@ function handleBoardLoad() {
   }
 }
 
+function scheduleRowsRead() {
+  clearTimeout(rowsReadTimer)
+  let attempts = 0
+  const readRows = () => {
+    if (updateRowsFromBoard() || attempts++ >= 8) return
+    rowsReadTimer = setTimeout(readRows, 250)
+  }
+  rowsReadTimer = setTimeout(readRows, 300)
+}
+
+function updateRowsFromBoard() {
+  if (!['adif-infotren-vista-arrivals', 'adif-infotren-vista-departures', 'adif-infotren-vista-alphabetical'].includes(props.interfaz)) return false
+  const width = board.value?.clientWidth || 0
+  const height = board.value?.clientHeight || 0
+  if (!width || !height) return false
+  const aspectRatio = width / height
+  let fontSize = 1
+  if (props.interfaz !== 'adif-infotren-vista-alphabetical') {
+    if (props.fontSize === 'auto') fontSize = height > width ? 2 : 1
+    else fontSize = Math.min(3, Math.max(1, Number.parseInt(String(props.fontSize), 10) || 1))
+  }
+  let rows
+  if (fontSize === 1) rows = Math.round(16 / aspectRatio) - 1
+  if (fontSize === 2) rows = Math.round(((16 / 9) * 8) / aspectRatio) - 1
+  if (fontSize === 3) rows = Math.round(((16 / 9) * 7) / aspectRatio) - 1
+  if (props.showHeader === false) rows++
+  if (!Number.isFinite(rows) || rows < 1) return false
+  calculatedRows.value = rows
+  emit('rows', rows)
+  return true
+}
+
 function clearBoardData() {
+  clearTimeout(rowsReadTimer)
   lastMessageRaw.value = null
   knownPlatforms = []
   lastReceivedAt = 0
   emit('data', null)
+  emit('rows', null)
   // Recreate the iframe so it cannot retain the previous station's board.
   iframeKey.value++
 }
@@ -360,6 +472,7 @@ function sendBoardData(data) {
     { target: 'grvta.setData', objData: JSON.stringify(data) },
     '*',
   )
+  scheduleRowsRead()
 }
 
 // 5-minute stale threshold
@@ -460,6 +573,8 @@ function handleIncoming(raw) {
 }
 
 onMounted(async () => {
+  boardResizeObserver = new ResizeObserver(() => scheduleRowsRead())
+  if (board.value) boardResizeObserver.observe(board.value)
   connection = new signalR.HubConnectionBuilder()
     .withUrl('https://info.adif.es/InfoStation', {
       skipNegotiation: true,
@@ -568,6 +683,8 @@ watch(
 
 onBeforeUnmount(() => {
   clearInterval(healthCheckTimer)
+  clearTimeout(rowsReadTimer)
+  boardResizeObserver?.disconnect()
   healthCheckTimer = null
   cancelRetries()
   connection?.stop()

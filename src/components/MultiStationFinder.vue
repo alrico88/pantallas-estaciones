@@ -17,7 +17,7 @@
       </div>
 
       <!-- Compact station finder for adding new stations -->
-      <div class="relative">
+      <div class="relative" :class="{ 'w-full': fullWidth }">
         <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
           <SearchIcon class="h-2 w-2" />
         </div>
@@ -27,11 +27,17 @@
           @blur="hideDropdown"
           type="text"
           placeholder="Buscar..."
-          class="w-32 pl-9 pr-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white placeholder-slate-400 focus:ring-1 focus:ring-dark-green focus:border-dark-green"
+          :class="[
+            fullWidth ? 'w-full' : 'w-32',
+            'pl-9 pr-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white placeholder-slate-400 focus:ring-1 focus:ring-dark-green focus:border-dark-green',
+          ]"
         />
         <div
           v-if="showDropdown && filteredStations.length > 0"
-          class="absolute z-10 w-64 bg-slate-700 border border-slate-600 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl"
+          :class="[
+            fullWidth ? 'w-full' : 'w-64',
+            'absolute z-10 bg-slate-700 border border-slate-600 rounded-lg mt-1 max-h-48 overflow-y-auto shadow-xl',
+          ]"
         >
           <div
             v-for="station in filteredStations"
@@ -63,6 +69,14 @@ const props = defineProps({
   modelValue: {
     type: Array,
     default: () => [],
+  },
+  maxSelections: {
+    type: Number,
+    default: Infinity,
+  },
+  fullWidth: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -134,6 +148,12 @@ const getStationName = (code) => {
 
 // Select a station
 const selectStation = (station) => {
+  if (props.maxSelections === 1) {
+    selectedStations.value = [station.code]
+    searchQuery.value = ''
+    showDropdown.value = false
+    return
+  }
   if (!selectedStations.value.includes(station.code)) {
     selectedStations.value.push(station.code)
   }

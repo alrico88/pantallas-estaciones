@@ -25,6 +25,8 @@ const formData = ref({
   alphabeticalStations: [],
   alphabeticalStationNames: '',
   alphabeticalNetwork: '',
+  alphabeticalStartStation: '',
+  alphabeticalPage: 1,
   platformFilter: [],
   productFilter: [],
   companyFilter: [],

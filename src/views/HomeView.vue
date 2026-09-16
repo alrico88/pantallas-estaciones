@@ -36,6 +36,7 @@
               :form-data="formData"
               :selected-station="selectedStation"
               :adif-data="adifData"
+              :rows="boardRows"
               @form-change="handleFormChange"
             />
           </section>
@@ -54,7 +55,37 @@
                     :simulateAccessOpeningMargin="formData.simulateAccessOpeningMargin"
                     @data="handledata"
                     @status="handlestatus"
+                    @rows="handleRows"
                   />
+                  <template #controls>
+                    <div
+                      v-if="['arrivals', 'departures', 'alphabetical'].includes(formData.interfaz)"
+                      class="flex items-center gap-2 text-xs text-slate-300"
+                    >
+                      <button
+                        type="button"
+                        aria-label="Página anterior"
+                        :disabled="localPage <= 1"
+                        @click="setLocalPage(localPage - 1)"
+                        class="w-7 h-7 rounded-lg border border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >‹</button>
+                      <input
+                        :value="localPage"
+                        min="1"
+                        type="number"
+                        inputmode="numeric"
+                        aria-label="Página"
+                        @change="updateLocalPage"
+                        class="w-12 h-7 px-1 text-center bg-slate-700 border border-slate-600 rounded text-white focus:ring-1 focus:ring-dark-green focus:border-dark-green"
+                      />
+                      <button
+                        type="button"
+                        aria-label="Página siguiente"
+                        @click="setLocalPage(localPage + 1)"
+                        class="w-7 h-7 rounded-lg border border-slate-600 bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors cursor-pointer"
+                      >›</button>
+                    </div>
+                  </template>
                 </ResizableContainer>
               </div>
 
@@ -133,6 +164,8 @@ const formData = ref({
   alphabeticalStations: [],
   alphabeticalStationNames: '',
   alphabeticalNetwork: '',
+  alphabeticalStartStation: '',
+  alphabeticalPage: 1,
   platformFilter: [], // Default none
   productFilter: [], // Changed from productFilter
   companyFilter: [], // Changed from companyFilter
@@ -170,6 +203,9 @@ const formData = ref({
 const selectedStation = ref(Stations.find((s) => s.code === '17000') || null)
 const adifData = ref(null)
 const adifStatus = ref(null)
+const boardRows = ref(null)
+const localPage = ref(1)
+const localPageActive = ref(false)
 
 // Set default station on mount
 onMounted(() => {
@@ -185,17 +221,46 @@ onMounted(() => {
 const handleStationSelected = (station) => {
   selectedStation.value = station
   formData.value.stationCode = station.code
+  boardRows.value = null
+  localPage.value = 1
+  localPageActive.value = false
 }
 
 const handleStationCleared = () => {
   selectedStation.value = null
   adifData.value = null
   formData.value.stationCode = ''
+  boardRows.value = null
+  localPage.value = 1
+  localPageActive.value = false
 }
 
 const handleFormChange = (newFormData) => {
+  const interfaceChanged = newFormData.interfaz !== formData.value.interfaz
+  const alphabeticalStartStationChanged = newFormData.alphabeticalStartStation !== formData.value.alphabeticalStartStation
+  if (interfaceChanged || alphabeticalStartStationChanged) {
+    localPage.value = 1
+    localPageActive.value = false
+    newFormData.alphabeticalPage = 1
+  }
   formData.value = newFormData
 }
+
+const handleRows = (rows) => {
+  boardRows.value = rows
+}
+
+const setLocalPage = (page) => {
+  localPage.value = Math.max(1, Number.parseInt(String(page), 10) || 1)
+  if (formData.value.interfaz === 'alphabetical') {
+    formData.value = { ...formData.value, alphabeticalPage: localPage.value }
+    localPageActive.value = false
+  } else {
+    localPageActive.value = true
+  }
+}
+
+const updateLocalPage = (event) => setLocalPage(event.target.value)
 
 const handledata = (data) => {
   adifData.value = data
@@ -207,7 +272,14 @@ const handlestatus = (status) => {
 
 // Computed props for Gravita component
 const gravitaProps = computed(() => {
-  return convertFormDataToGravitaProps(formData.value)
+  const props = convertFormDataToGravitaProps(formData.value)
+  if (localPageActive.value && ['arrivals', 'departures'].includes(formData.value.interfaz) && boardRows.value) {
+    props.startTrain = 1 + (localPage.value - 1) * boardRows.value
+  }
+  if (formData.value.interfaz === 'alphabetical' && boardRows.value) {
+    props.alphabeticalPageRows = boardRows.value
+  }
+  return props
 })
 
 // URL generation

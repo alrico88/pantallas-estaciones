@@ -16,6 +16,8 @@ export interface FormData {
   alphabeticalStations: string[]
   alphabeticalStationNames: string
   alphabeticalNetwork: string
+  alphabeticalStartStation: string
+  alphabeticalPage: number
   platformFilter: string[]
   productFilter: string[]
   companyFilter: string[]
@@ -164,6 +166,8 @@ export function convertFormDataToGravitaProps(formData: FormData) {
       .map((entry) => entry.trim().replace(/^0+(?=\d)/, ''))
       .filter((entry) => /^\d+:[^<>"']+$/.test(entry))
       .join(',')
+    props.alphabeticalStartStation = normalizeStationCode(formData.alphabeticalStartStation || '')
+    props.alphabeticalPage = Math.max(1, Number.parseInt(String(formData.alphabeticalPage), 10) || 1)
   }
 
   if (formData.interfaz === 'platform') {
@@ -189,6 +193,10 @@ export function convertFormDataToGravitaProps(formData: FormData) {
 
   // Filter props based on interface
   return filterPropsByInterface(props, formData.interfaz)
+}
+
+function normalizeStationCode(code: string) {
+  return code.trim().replace(/^0+(?=\d)/, '')
 }
 
 // Generate URL from form data and selected station
@@ -256,6 +264,10 @@ export function generateUrl(formData: FormData, selectedStation: any): string {
 
     // Skip subtitleParam as it's handled with subtitle
     if (key === 'subtitleParam') {
+      return
+    }
+
+    if (key === 'alphabeticalPage' && Number(value) <= 1) {
       return
     }
 
@@ -416,6 +428,8 @@ export function filterPropsByInterface(props: any, interfaceKey: string) {
       'alphabeticalStations',
       'alphabeticalStationNames',
       'alphabeticalNetwork',
+      'alphabeticalStartStation',
+      'alphabeticalPage',
       'platformFilter',
       'productFilter',
       'companyFilter',
@@ -520,6 +534,8 @@ export function filterFormDataByInterface(data: any) {
       'alphabeticalStations',
       'alphabeticalStationNames',
       'alphabeticalNetwork',
+      'alphabeticalStartStation',
+      'alphabeticalPage',
       'platformFilter',
       'productFilter',
       'companyFilter',
@@ -651,6 +667,8 @@ export function parseUrlParamsToFormData(params: URLSearchParams): FormData {
     alphabeticalStations: parseArray(params.get('alphabeticalStations')),
     alphabeticalStationNames: params.get('alphabeticalStationNames') || '',
     alphabeticalNetwork: params.get('alphabeticalNetwork') || '',
+    alphabeticalStartStation: params.get('alphabeticalStartStation') || '',
+    alphabeticalPage: Math.max(1, Number.parseInt(params.get('alphabeticalPage') || '1', 10) || 1),
     platformFilter: parseArray(params.get('platformFilter')),
     productFilter: productFilterKeys,
     companyFilter: companyFilterKeys,

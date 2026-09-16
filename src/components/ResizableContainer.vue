@@ -50,7 +50,7 @@
       </div>
     </div>
 
-    <div class="flex justify-start mt-4">
+    <div class="flex items-center gap-3 mt-4">
       <button
         @click="toggleAspectRatio"
         class="px-2 py-1 bg-slate-700 text-slate-300 rounded-md hover:bg-slate-600 transition-colors flex items-center space-x-1.5 border border-slate-600 text-xs cursor-pointer"
@@ -59,6 +59,9 @@
         <MobileIcon v-else />
         <span>{{ isPortrait ? '16:9' : '9:16' }}</span>
       </button>
+      <div class="ml-auto">
+        <slot name="controls" />
+      </div>
     </div>
   </div>
 </template>
