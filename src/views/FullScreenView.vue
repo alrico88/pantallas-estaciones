@@ -22,6 +22,9 @@ const formData = ref({
   countdown: true,
   showStops: true,
   showAllTrains: false,
+  alphabeticalStations: [],
+  alphabeticalStationNames: '',
+  alphabeticalNetwork: '',
   platformFilter: [],
   productFilter: [],
   companyFilter: [],
@@ -47,6 +50,8 @@ const formData = ref({
   showAlightingOnly: true,
   sectorizationMode: 'first_and_last',
   fontSize: 0,
+  customFilter: [], // Línea de cercanías filter
+  stopFilter: [], // Estaciones con parada filter
 })
 
 // Parse URL parameters on mount

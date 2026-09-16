@@ -1,10 +1,11 @@
 export { Stations, PopularStations } from './stations'
 
 export const Interfaces = [
-  { key: 'departures', value: 'adif-gravita-departures', label: 'Salidas' },
-  { key: 'arrivals', value: 'adif-gravita-arrivals', label: 'Llegadas' },
-  { key: 'platform', value: 'adif-gravita-platform', label: 'Vía' },
-  { key: 'clock', value: 'adif-gravita-clock', label: 'Reloj' },
+  { key: 'departures', value: 'adif-infotren-vista-departures', label: 'Salidas' },
+  { key: 'arrivals', value: 'adif-infotren-vista-arrivals', label: 'Llegadas' },
+  { key: 'platform', value: 'adif-infotren-vista-platform', label: 'Vía' },
+  { key: 'alphabetical', value: 'adif-infotren-vista-alphabetical', label: 'A - Z' },
+  { key: 'clock', value: 'adif-infotren-vista-clock', label: 'Reloj' },
 ]
 
 export const Traffics = [
@@ -124,6 +125,12 @@ export const VisualizationOptions = [
   { key: 'showStops', label: 'Mostrar paradas' },
   { key: 'showAlerts', label: 'Mostrar alertas' },
   { key: 'showAllTrains', label: 'Mostrar con scroll' },
+]
+
+export const AlphabeticalVisualizationOptions = [
+  { key: 'showHeader', label: 'Mostrar cabecera' },
+  { key: 'countdown', label: 'Cuenta atrás' },
+  { key: 'showPlatformPreview', label: 'Previsión de vía' },
 ]
 
 export const PlatformBooleanOptions = [

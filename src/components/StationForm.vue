@@ -3,8 +3,8 @@
     <div :class="{ 'opacity-50 pointer-events-none': !selectedStation }">
       <label class="block text-sm font-medium text-slate-300 mb-3">Pantalla</label>
       <div class="space-y-3">
-        <div class="grid grid-cols-3 gap-3">
-          <div v-for="option in Interfaces.slice(0, 3)" :key="option.key" class="relative">
+        <div class="grid grid-cols-2 gap-3">
+          <div v-for="option in Interfaces.slice(0, 2)" :key="option.key" class="relative">
             <input
               :id="option.key"
               :value="option.key"
@@ -25,15 +25,14 @@
               <div class="mr-1 sm:mr-2">
                 <DeparturesIcon v-if="option.key === 'departures'" />
                 <ArrivalsIcon v-else-if="option.key === 'arrivals'" />
-                <PlatformIcon v-else-if="option.key === 'platform'" />
               </div>
               <span class="text-xs sm:text-sm font-bold uppercase">{{ option.label }}</span>
             </label>
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div v-for="option in Interfaces.slice(3, 5)" :key="option.key" class="relative">
+        <div class="grid grid-cols-3 gap-3">
+          <div v-for="option in Interfaces.slice(2)" :key="option.key" class="relative">
             <input
               :id="option.key"
               :value="option.key"
@@ -44,7 +43,7 @@
             />
             <label
               :for="option.key"
-              class="flex items-center justify-center p-2 sm:p-3 rounded-lg border cursor-pointer transition-all text-center h-10 sm:h-12"
+              class="flex items-center justify-center p-2 sm:p-3 rounded-lg border cursor-pointer transition-all text-center h-8 sm:h-10"
               :class="
                 formData.interfaz === option.key
                   ? 'bg-dark-green border-dark-green text-dark-blue'
@@ -52,7 +51,8 @@
               "
             >
               <div class="mr-1 sm:mr-2">
-                <NumberIcon v-if="option.key === 'number'" />
+                <PlatformIcon v-if="option.key === 'platform'" />
+                <AlphabeticalIcon v-else-if="option.key === 'alphabetical'" />
                 <ClockIcon v-else-if="option.key === 'clock'" />
               </div>
               <span class="text-xs sm:text-sm font-bold uppercase">{{ option.label }}</span>
@@ -141,7 +141,7 @@
 
     <!-- Platform Filter in its own line -->
     <div
-      v-if="formData.interfaz === 'arrivals' || formData.interfaz === 'departures'"
+      v-if="['arrivals', 'departures', 'alphabetical'].includes(formData.interfaz)"
       :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
     >
       <label class="block text-sm font-medium text-slate-300 mb-3">Vías</label>
@@ -245,10 +245,17 @@
 
     <!-- Estaciones con parada and Línea de cercanías in two columns -->
     <div
-      v-if="formData.interfaz === 'arrivals' || formData.interfaz === 'departures'"
+      v-if="['arrivals', 'departures', 'alphabetical'].includes(formData.interfaz)"
       class="grid grid-cols-1 md:grid-cols-2 gap-6"
       :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
     >
+      <div v-if="formData.interfaz === 'alphabetical'">
+        <label class="block text-sm font-medium text-slate-300 mb-3">Estaciones a mostrar</label>
+        <MultiStationFinder
+          :model-value="formData.alphabeticalStations"
+          @update:model-value="(value) => emitFormChange({ alphabeticalStations: value })"
+        />
+      </div>
       <!-- Estaciones con parada Filter -->
       <div>
         <label class="block text-sm font-medium text-slate-300 mb-3">Estaciones con parada</label>
@@ -298,11 +305,27 @@
           </div>
         </div>
       </div>
+      <div v-if="formData.interfaz === 'alphabetical'">
+        <label for="alphabeticalNetwork" class="block text-sm font-medium text-slate-300 mb-3"
+          >Logotipo de red</label
+        >
+        <select
+          id="alphabeticalNetwork"
+          :value="formData.alphabeticalNetwork"
+          @change="(e) => emitFormChange({ alphabeticalNetwork: e.target.value })"
+          class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-dark-green focus:border-dark-green text-white"
+        >
+          <option value="">Sin logotipo</option>
+          <option value="ADIF">ADIF</option>
+          <option value="BUS">Autobús</option>
+          <option value="AEROPUERTO">Aeropuerto</option>
+        </select>
+      </div>
     </div>
 
     <!-- Company and Product Filters with custom widths -->
     <div
-      v-if="formData.interfaz === 'arrivals' || formData.interfaz === 'departures'"
+      v-if="['arrivals', 'departures', 'alphabetical'].includes(formData.interfaz)"
       class="grid grid-cols-1 md:grid-cols-3 gap-6"
       :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
     >
@@ -439,6 +462,59 @@
             "
             class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-dark-green focus:border-dark-green text-white placeholder-slate-400"
           />
+        </div>
+      </div>
+    </div>
+
+    <!-- Infotren Vista 1.9 alphabetical station board -->
+    <div
+      v-if="formData.interfaz === 'alphabetical'"
+      class="space-y-5"
+      :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
+    >
+      <div>
+        <label for="alphabeticalStationNames" class="block text-sm font-medium text-slate-300 mb-2"
+          >Nombres alternativos</label
+        >
+        <input
+          id="alphabeticalStationNames"
+          :value="formData.alphabeticalStationNames"
+          @input="(e) => emitFormChange({ alphabeticalStationNames: e.target.value })"
+          type="text"
+          placeholder="31412:A Coruña Centro,60000:Atocha"
+          class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-dark-green focus:border-dark-green text-white placeholder-slate-400"
+        />
+        <p class="text-xs text-slate-400 mt-1">
+          Código:nombre. Solo se ve si la estación aparece en el panel; el nuevo nombre puede
+          cambiar su posición alfabética.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <div v-for="option in AlphabeticalVisualizationOptions" :key="option.key" class="relative">
+          <input
+            :id="`alphabetical-${option.key}`"
+            :checked="formData[option.key]"
+            @change="(e) => emitFormChange({ [option.key]: e.target.checked })"
+            type="checkbox"
+            class="sr-only"
+          />
+          <label
+            :for="`alphabetical-${option.key}`"
+            class="flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition-all"
+            :class="
+              formData[option.key]
+                ? 'bg-slate-600 text-white'
+                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+            "
+          >
+            <div
+              class="w-3 h-3 rounded border mr-2 flex items-center justify-center"
+              :class="formData[option.key] ? 'border-white bg-white' : 'border-slate-400'"
+            >
+              <CheckmarkIcon v-if="formData[option.key]" />
+            </div>
+            {{ option.label }}
+          </label>
         </div>
       </div>
     </div>
@@ -828,7 +904,11 @@
     </div>
 
     <div
-      v-if="formData.interfaz !== 'number' && formData.interfaz !== 'clock'"
+      v-if="
+        formData.interfaz !== 'number' &&
+        formData.interfaz !== 'clock' &&
+        formData.interfaz !== 'alphabetical'
+      "
       :class="{ 'opacity-50 pointer-events-none': !selectedStation }"
     >
       <label class="block text-sm font-medium text-slate-300 mb-3">Tamaño de fuente</label>
@@ -992,6 +1072,7 @@ import DeparturesIcon from './icons/DeparturesIcon.vue'
 import ArrivalsIcon from './icons/ArrivalsIcon.vue'
 import PlatformIcon from './icons/PlatformIcon.vue'
 import ClockIcon from './icons/ClockIcon.vue'
+import AlphabeticalIcon from './icons/AlphabeticalIcon.vue'
 import CloseIcon from './icons/CloseIcon.vue'
 import CheckmarkIcon from './icons/CheckmarkIcon.vue'
 import MultiStationFinder from './MultiStationFinder.vue'
@@ -1005,6 +1086,7 @@ import {
   PlatformTriggerList,
   Products,
   VisualizationOptions,
+  AlphabeticalVisualizationOptions,
   PlatformBooleanOptions,
 } from '../constants'
 
@@ -1261,24 +1343,16 @@ const addManualPlatformLocation = () => {
 const removePlatformLocation = (platform) => {
   const newPlatformLocations = props.formData.platformLocations.filter((p) => p !== platform)
 
-  // Also remove from left, right, and forward location arrays if present
+  // Also remove from left and right location arrays if present
   const newPlatformLocationLeft = props.formData.platformLocationLeft.filter((p) => p !== platform)
   const newPlatformLocationRight = props.formData.platformLocationRight.filter(
     (p) => p !== platform,
   )
-  const newPlatformLocationForwardLeft = (props.formData.platformLocationForwardLeft || []).filter(
-    (p) => p !== platform,
-  )
-  const newPlatformLocationForwardRight = (
-    props.formData.platformLocationForwardRight || []
-  ).filter((p) => p !== platform)
 
   emitFormChange({
     platformLocations: newPlatformLocations,
     platformLocationLeft: newPlatformLocationLeft,
     platformLocationRight: newPlatformLocationRight,
-    platformLocationForwardLeft: newPlatformLocationForwardLeft,
-    platformLocationForwardRight: newPlatformLocationForwardRight,
   })
 }
 

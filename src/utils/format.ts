@@ -13,6 +13,9 @@ export interface FormData {
   countdown: boolean
   showStops: boolean
   showAllTrains: boolean
+  alphabeticalStations: string[]
+  alphabeticalStationNames: string
+  alphabeticalNetwork: string
   platformFilter: string[]
   productFilter: string[]
   companyFilter: string[]
@@ -91,7 +94,7 @@ export function convertFormDataToGravitaProps(formData: FormData) {
   }
 
   // Add conditional props based on interface
-  if (formData.interfaz === 'arrivals' || formData.interfaz === 'departures') {
+  if (['arrivals', 'departures', 'alphabetical'].includes(formData.interfaz)) {
     props.showHeader = formData.showHeader
     props.showAccess = formData.showAccess
     props.showPlatform = formData.showPlatform
@@ -144,6 +147,23 @@ export function convertFormDataToGravitaProps(formData: FormData) {
 
     props.showPlatformPreview = formData.showPlatformPreview
     props.showAlerts = formData.showAlerts
+  }
+
+  if (formData.interfaz === 'alphabetical') {
+    props.showHeader = formData.showHeader
+    props.countdown = formData.countdown
+    props.showPlatformPreview = formData.showPlatformPreview
+    props.alphabeticalStations = formData.alphabeticalStations
+      .map((code) => code.trim().replace(/^0+(?=\d)/, ''))
+      .filter((code) => /^\d+$/.test(code))
+      .join(',')
+    // The library uses these values as an SVG basename and code:name pairs.
+    props.alphabeticalNetwork = formData.alphabeticalNetwork.trim().replace(/[^\w-]/g, '')
+    props.alphabeticalStationNames = formData.alphabeticalStationNames
+      .split(',')
+      .map((entry) => entry.trim().replace(/^0+(?=\d)/, ''))
+      .filter((entry) => /^\d+:[^<>"']+$/.test(entry))
+      .join(',')
   }
 
   if (formData.interfaz === 'platform') {
@@ -388,6 +408,20 @@ export function filterPropsByInterface(props: any, interfaceKey: string) {
     ],
     number: [...allAllowedProps, 'platformLocation'],
     clock: [...allAllowedProps],
+    alphabetical: [
+      ...allAllowedProps,
+      'showHeader',
+      'countdown',
+      'showPlatformPreview',
+      'alphabeticalStations',
+      'alphabeticalStationNames',
+      'alphabeticalNetwork',
+      'platformFilter',
+      'productFilter',
+      'companyFilter',
+      'customFilter',
+      'stopFilter',
+    ],
   }
 
   const allowed = allowedProps[interfaceKey] || []
@@ -458,6 +492,7 @@ export function filterFormDataByInterface(data: any) {
       'interfaz',
       'traffic',
       'languages',
+      'showPlatformSign',
       'platformLocations',
       'platformLocationRight',
       'platformLocationLeft',
@@ -475,6 +510,22 @@ export function filterFormDataByInterface(data: any) {
     ],
     number: ['interfaz', 'displayNumber', 'fontSize'],
     clock: ['interfaz', 'fontSize'],
+    alphabetical: [
+      'interfaz',
+      'traffic',
+      'languages',
+      'showHeader',
+      'countdown',
+      'showPlatformPreview',
+      'alphabeticalStations',
+      'alphabeticalStationNames',
+      'alphabeticalNetwork',
+      'platformFilter',
+      'productFilter',
+      'companyFilter',
+      'customFilter',
+      'stopFilter',
+    ],
   }
 
   const allowed = allowedProps[interfaceKey] || []
@@ -503,7 +554,9 @@ export function parseUrlParamsToFormData(params: URLSearchParams): FormData {
 
   // Map interface value back to key
   const interfaceValue = params.get('interfaz') || 'departures'
-  const interfaceObj = Interfaces.find((i) => i.value === interfaceValue)
+  // Existing share links used the pre-1.9 class names; keep them usable.
+  const normalizedInterfaceValue = interfaceValue.replace(/^adif-gravita-/, 'adif-infotren-vista-')
+  const interfaceObj = Interfaces.find((i) => i.value === normalizedInterfaceValue)
   const interfaceKey = interfaceObj?.key || interfaceValue
 
   // Map traffic values back to keys
@@ -595,6 +648,9 @@ export function parseUrlParamsToFormData(params: URLSearchParams): FormData {
       return true
     })(),
     showAllTrains: parseBoolean(params.get('showAllTrains'), false),
+    alphabeticalStations: parseArray(params.get('alphabeticalStations')),
+    alphabeticalStationNames: params.get('alphabeticalStationNames') || '',
+    alphabeticalNetwork: params.get('alphabeticalNetwork') || '',
     platformFilter: parseArray(params.get('platformFilter')),
     productFilter: productFilterKeys,
     companyFilter: companyFilterKeys,

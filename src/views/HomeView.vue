@@ -130,6 +130,9 @@ const formData = ref({
   countdown: true,
   showStops: true,
   showAllTrains: false,
+  alphabeticalStations: [],
+  alphabeticalStationNames: '',
+  alphabeticalNetwork: '',
   platformFilter: [], // Default none
   productFilter: [], // Changed from productFilter
   companyFilter: [], // Changed from companyFilter
